@@ -5,11 +5,6 @@ using UnityEngine;
 /// <summary>
 /// AgentBelief
 /// </summary>
-/// 
-public class GOAPAgent : MonoBehaviour
-{
-
-}
 
 public class BeliefFactory
 {
