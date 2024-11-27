@@ -7,7 +7,6 @@ using DependencyInjection;
 /// <summary>
 /// GOAPAgent
 /// </summary>
-/// 
 
 [RequireComponent (typeof(NavMeshAgent))]
 [RequireComponent(typeof(AnimationController))]
@@ -49,6 +48,7 @@ public class GOAPAgent : MonoBehaviour
     [Inject] GOAPFactory gFactory;
     IGOAPPlanner gPlanner;
 
+
     private void Awake()
     {
         navMeshAgent = GetComponent<NavMeshAgent>();
@@ -66,6 +66,65 @@ public class GOAPAgent : MonoBehaviour
         SetupActions();
         SetupGoals();
     }
+
+    private void OnEnable() => chaseSensor.OnTargetChanged += HandleTargetChanged;
+
+    private void OnDisable() => chaseSensor.OnTargetChanged -= HandleTargetChanged;
+
+    private void Update()
+    {
+        statsTimer.Tick(Time.deltaTime);
+        animations.SetSpeed(navMeshAgent.velocity.magnitude);
+
+        // Update the plan and current action if there is one
+        if (currentAction == null)
+        {
+            Debug.Log("Calculating any potential new plan");
+            CalculatePlan();
+
+            if (actionPlan != null && actionPlan.Actions.Count > 0)
+            {
+                navMeshAgent.ResetPath();
+
+                currentGoal = actionPlan.AgentGoal;
+                Debug.Log($"Goal: {currentGoal.Name} with {actionPlan.Actions.Count} actions in plan");
+                currentAction = actionPlan.Actions.Pop();
+                Debug.Log($"Popped action: {currentAction.Name}");
+                // Verify all precondition effects are true
+                if (currentAction.Preconditions.All(b => b.Evaluate()))
+                {
+                    currentAction.Start();
+                }
+                else
+                {
+                    Debug.Log("Preconditions not met, clearing current action and goal");
+                    currentAction = null;
+                    currentGoal = null;
+                }
+            }
+        }
+
+        // If we have a current action, execute it
+        if (actionPlan != null && currentAction != null)
+        {
+            currentAction.Update(Time.deltaTime);
+
+            if (currentAction.Complete)
+            {
+                Debug.Log($"{currentAction.Name} complete");
+                currentAction.Stop();
+                currentAction = null;
+
+                if (actionPlan.Actions.Count == 0)
+                {
+                    Debug.Log("Plan complete");
+                    lastGoal = currentGoal;
+                    currentGoal = null;
+                }
+            }
+        }
+    }
+
 
     void SetupBeliefs()
     {
@@ -198,80 +257,12 @@ public class GOAPAgent : MonoBehaviour
         statsTimer.Start();
     }
 
-    // TODO move to stats system
-    void UpdateStats()
-    {
-        stamina += InRangeOf(restingPosition.position, 3f) ? 20 : -10;
-        health += InRangeOf(foodShack.position, 3f) ? 20 : -5;
-        stamina = Mathf.Clamp(stamina, 0, 100);
-        health = Mathf.Clamp(health, 0, 100);
-    }
-
-    bool InRangeOf(Vector3 pos, float range) => Vector3.Distance(transform.position, pos) < range;
-
-    void OnEnable() => chaseSensor.OnTargetChanged += HandleTargetChanged;
-    void OnDisable() => chaseSensor.OnTargetChanged -= HandleTargetChanged;
-
     void HandleTargetChanged()
     {
         Debug.Log("Target changed, clearing current action and goal");
         // Force the planner to re-evaluate the plan
         currentAction = null;
         currentGoal = null;
-    }
-
-    void Update()
-    {
-        statsTimer.Tick(Time.deltaTime);
-        animations.SetSpeed(navMeshAgent.velocity.magnitude);
-
-        // Update the plan and current action if there is one
-        if (currentAction == null)
-        {
-            Debug.Log("Calculating any potential new plan");
-            CalculatePlan();
-
-            if (actionPlan != null && actionPlan.Actions.Count > 0)
-            {
-                navMeshAgent.ResetPath();
-
-                currentGoal = actionPlan.AgentGoal;
-                Debug.Log($"Goal: {currentGoal.Name} with {actionPlan.Actions.Count} actions in plan");
-                currentAction = actionPlan.Actions.Pop();
-                Debug.Log($"Popped action: {currentAction.Name}");
-                // Verify all precondition effects are true
-                if (currentAction.Preconditions.All(b => b.Evaluate()))
-                {
-                    currentAction.Start();
-                }
-                else
-                {
-                    Debug.Log("Preconditions not met, clearing current action and goal");
-                    currentAction = null;
-                    currentGoal = null;
-                }
-            }
-        }
-
-        // If we have a current action, execute it
-        if (actionPlan != null && currentAction != null)
-        {
-            currentAction.Update(Time.deltaTime);
-
-            if (currentAction.Complete)
-            {
-                Debug.Log($"{currentAction.Name} complete");
-                currentAction.Stop();
-                currentAction = null;
-
-                if (actionPlan.Actions.Count == 0)
-                {
-                    Debug.Log("Plan complete");
-                    lastGoal = currentGoal;
-                    currentGoal = null;
-                }
-            }
-        }
     }
 
     void CalculatePlan()
@@ -293,4 +284,17 @@ public class GOAPAgent : MonoBehaviour
             actionPlan = potentialPlan;
         }
     }
+
+    // TODO: Move to stats system
+    void UpdateStats()
+    {
+        stamina += InRangeOf(restingPosition.position, 3f) ? 20 : -10;
+        health += InRangeOf(foodShack.position, 3f) ? 20 : -5;
+        stamina = Mathf.Clamp(stamina, 0, 100);
+        health = Mathf.Clamp(health, 0, 100);
+    }
+
+    bool InRangeOf(Vector3 pos, float range) => Vector3.Distance(transform.position, pos) < range;
+
+
 }

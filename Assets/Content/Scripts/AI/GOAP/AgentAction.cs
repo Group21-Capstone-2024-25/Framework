@@ -11,6 +11,7 @@ public class AgentAction
     IActionStrategy strategy;
     public bool Complete => strategy.Complete;
 
+
     AgentAction(string name)
     {
         Name = name;
@@ -37,6 +38,7 @@ public class AgentAction
     }
 
     public void Stop() => strategy.Stop();
+
 
     public class Builder
     {

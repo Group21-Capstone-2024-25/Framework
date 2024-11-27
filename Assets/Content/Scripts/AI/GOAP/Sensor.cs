@@ -18,14 +18,15 @@ public class Sensor : MonoBehaviour
     public Vector3 TargetPosition => target ? target.transform.position : Vector3.zero;
     public bool IsTargetInRange => TargetPosition != Vector3.zero;
 
-    void Awake()
+
+    private void Awake()
     {
         detectionRange = GetComponent<SphereCollider>();
         detectionRange.isTrigger = true;
         detectionRange.radius = detectionRadius;
     }
 
-    void Start()
+    private void Start()
     {
         timer = new CountdownTimer(timerInterval);
         timer.OnTimerStop += () => {
@@ -35,12 +36,31 @@ public class Sensor : MonoBehaviour
         timer.Start();
     }
 
-    void Update()
+    private void Update()
     {
         timer.Tick(Time.deltaTime);
     }
 
-    void UpdateTargetPosition(GameObject target = null)
+    private void OnTriggerEnter(Collider other)
+    {
+        if (!other.CompareTag("Player")) return;
+        UpdateTargetPosition(other.gameObject);
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if (!other.CompareTag("Player")) return;
+        UpdateTargetPosition();
+    }
+
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = IsTargetInRange ? Color.red : Color.green;
+        Gizmos.DrawWireSphere(transform.position, detectionRadius);
+    }
+
+
+    private void UpdateTargetPosition(GameObject target = null)
     {
         this.target = target;
         if (IsTargetInRange && (lastKnownPosition != TargetPosition || lastKnownPosition != Vector3.zero))
@@ -50,21 +70,4 @@ public class Sensor : MonoBehaviour
         }
     }
 
-    void OnTriggerEnter(Collider other)
-    {
-        if (!other.CompareTag("Player")) return;
-        UpdateTargetPosition(other.gameObject);
-    }
-
-    void OnTriggerExit(Collider other)
-    {
-        if (!other.CompareTag("Player")) return;
-        UpdateTargetPosition();
-    }
-
-    void OnDrawGizmos()
-    {
-        Gizmos.color = IsTargetInRange ? Color.red : Color.green;
-        Gizmos.DrawWireSphere(transform.position, detectionRadius);
-    }
 }

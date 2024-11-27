@@ -1,5 +1,6 @@
 using UnityEngine;
 
+[RequireComponent(typeof(Animator))]
 public abstract class AnimationController : MonoBehaviour
 {
     const float k_crossfadeDuration = 0.1f;
@@ -13,7 +14,7 @@ public abstract class AnimationController : MonoBehaviour
     [HideInInspector] public int speedHash = Animator.StringToHash("Speed");
     [HideInInspector] public int attackClip = Animator.StringToHash("Attack");
 
-    void Awake()
+    private void Awake()
     {
         animator = GetComponentInChildren<Animator>();
         SetLocomotionClip();
@@ -24,7 +25,7 @@ public abstract class AnimationController : MonoBehaviour
     public void SetSpeed(float speed) => animator.SetFloat(speedHash, speed);
     public void Attack() => PlayAnimationUsingTimer(attackClip);
 
-    void Update() => timer?.Tick(Time.deltaTime);
+    private void Update() => timer?.Tick(Time.deltaTime);
 
     void PlayAnimationUsingTimer(int clipHash)
     {
